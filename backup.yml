@@ -1,0 +1,111 @@
+---
+- name: Generate vSphere Resource Report
+  hosts: vcenter
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars/vcenter_config.yml
+
+  tasks:
+    # Task 1: Get datacenter information
+    - name: Get datacenter information
+      vmware.vmware_rest.vcenter_datacenter_info:
+        vcenter_hostname: "{{ ansible_host }}" 
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        filter_names:
+          - "{{ datacenter_name }}"
+      delegate_to: localhost
+      register: datacenter_info
+
+    # Task 2: Fail if datacenter not found
+    - name: Fail if datacenter not found
+      fail:
+        msg: "Error: Datacenter '{{ datacenter_name }}' not found. Please check the name in vars/vcenter_config.yml."
+      when: datacenter_info.value is not defined or datacenter_info.value | length == 0
+
+    # Task 3: Get cluster information
+    - name: Get cluster information
+      vmware.vmware_rest.vcenter_cluster_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        filter_names:
+          - "{{ cluster_name }}"
+        filter_datacenters:
+          - "{{ datacenter_info.value[0].datacenter }}"
+      delegate_to: localhost
+      register: cluster_info
+
+    # Task 4: Fail if cluster not found
+    - name: Fail if cluster not found 
+      fail: 
+        msg: "Error: Cluster '{{ cluster_name }}' not found within '{{ datacenter_name }}'."
+      when: cluster_info.value is not defined or cluster_info.value | length == 0 
+
+    # Task 5: Get all host information within the cluster
+    - name: Get all host information within the cluster
+      vmware.vmware_rest.vcenter_host_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+      delegate_to: localhost
+      register: host_info 
+
+    # Task 6: Get all datastore information (NOTE: wrong module used before)
+    - name: Get all datastore information
+      vmware.vmware_rest.vcenter_datastore_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+      delegate_to: localhost
+      register: datastore_info
+
+    # Task 7: Display Cluster Summary
+   # - name: Display Cluster Summary
+    #  debug:
+     #   msg: |
+      #    --- Cluster Summary ({{ cluster_name }}) ---
+       #   CPU Capacity: {{ (cluster_info.value[0].cpu.total_cpu_hz / 1000000000) | round(2) }} GHz
+        #  CPU Used:     {{ (cluster_info.value[0].cpu.used_cpu_hz / 1000000000) | round(2) }} GHz
+         # Memory Capacity: {{ (cluster_info.value[0].memory.total_mem_MiB / 1024) | round(2) }} GB
+          #Memory Used:     {{ (cluster_info.value[0].memory.used_mem_MiB / 1024) | round(2) }} GB
+         # -------------------------------------
+      
+    # Task 8: Display Host Information
+    - name: Display Host Information
+      debug:
+        msg: |
+          --- Host Details ---
+          {% for host in host_info.value %}
+          Host: {{ host.name }}
+            Connection State: {{ host.connection_state }}
+            Power State:      {{ host.power_state }}
+          {% endfor %}
+          --------------------
+
+    # Task 9: Display Datastore Information
+    - name: Display Datastore Information
+      debug:
+        msg: |
+          --- Datastore Details ---
+          {% for datastore in datastore_info.value %}
+          Datastore: {{ datastore.name }} ({{ datastore.type }})
+            Capacity: {{ (datastore.capacity / 1073741824) | round(2) }} GB
+            Free Space: {{ (datastore.free_space / 1073741824) | round(2) }} GB
+            Used Space: {{ ((datastore.capacity - datastore.free_space) / 1073741824) | round(2) }} GB
+          {% endfor %}
+          -------------------------
+    #Debug
+    - name: Debug cluster_info.value
+      debug:
+        var: cluster_info.value
+    #Html report
+    - name: Generate HTML report using Jinja2 template
+      template:
+        src: templates/report.html.j2
+        dest: report.html

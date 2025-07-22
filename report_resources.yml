@@ -1,0 +1,173 @@
+---
+- name: Generate vSphere Resource Report
+  hosts: vcenter
+  connection: local
+  gather_facts: true
+  vars_files:
+    - vars/vcenter_config.yml
+
+  tasks:
+    - name: Get datacenter information
+      vmware.vmware_rest.vcenter_datacenter_info:
+        vcenter_hostname: "{{ ansible_host }}" 
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        filter_names:
+          - "{{ datacenter_name }}"
+      delegate_to: localhost
+      register: datacenter_info
+
+    - name: Fail if datacenter not found
+      fail:
+        msg: "Error: Datacenter '{{ datacenter_name }}' not found. Please check the name in vars/vcenter_config.yml."
+      when: datacenter_info.value is not defined or datacenter_info.value | length == 0
+
+    - name: Get cluster information
+      vmware.vmware_rest.vcenter_cluster_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        filter_names:
+          - "{{ cluster_name }}"
+        filter_datacenters:
+          - "{{ datacenter_info.value[0].datacenter }}"
+      delegate_to: localhost
+      register: cluster_info
+
+    - name: Fail if cluster not found 
+      fail: 
+        msg: "Error: Cluster '{{ cluster_name }}' not found within '{{ datacenter_name }}'."
+      when: cluster_info.value is not defined or cluster_info.value | length == 0 
+
+    - name: Get all host information within the cluster
+      vmware.vmware_rest.vcenter_host_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+      register: host_info 
+      delegate_to: localhost
+
+
+    - name: Get all datastore information
+      vmware.vmware_rest.vcenter_datastore_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+      delegate_to: localhost
+      register: datastore_info
+
+    - name: Get available vCenter appliance monitoring info IDs
+      vmware.vmware_rest.appliance_monitoring_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+      delegate_to: localhost
+      register: appliance_metrics_info
+    
+    - name: Get all VM information within the cluster
+      vmware.vmware_rest.vcenter_vm_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        clusters:
+          - "{{ cluster_info.value[0].cluster }}"
+      delegate_to: localhost
+      register: vm_info
+    - name: Gather detailed info for each VM
+      vmware.vmware_rest.vcenter_vm_info:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{ validate_certs }}"
+        vm: "{{ item.vm }}"
+      loop: "{{ vm_info.value }}"
+      register: detailed_vm_info
+      delegate_to: localhost
+
+    - name: Query the monitoring backend
+      vmware.vmware_rest.appliance_monitoring_query:
+        vcenter_hostname: "{{ ansible_host }}"
+        vcenter_username: "{{ ansible_user }}"
+        vcenter_password: "{{ ansible_password }}"
+        vcenter_validate_certs: "{{validate_certs}}"
+        names:
+          - "cpu.util"
+        function: "AVG"
+        interval: "MINUTES5"
+        start_time: "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime((ansible_date_time.epoch | int) - 3600) }}"
+        end_time: "{{ '%Y-%m-%dT%H:%M:%SZ' | strftime(ansible_date_time.epoch | int) }}"
+      register: monitoring_data
+      delegate_to: localhost
+    
+    - name: Extract CPU data list
+      set_fact:
+        cpu_data: "{{ monitoring_data.value[0].data | reject('equalto', '') | map('float') | list }}"
+      when: monitoring_data.value is defined and monitoring_data.value | length > 0 and monitoring_data.value[0].data is defined and monitoring_data.value[0].data | length > 0
+    
+    - name: Calculate CPU average, min, max
+      set_fact:
+        cpu_data: "{{ monitoring_data.value[0].data | reject('equalto', '') | map('float') | list }}"
+        cpu_avg: "{{ cpu_data | sum / cpu_data | length }}"
+        cpu_min: "{{ cpu_data | min }}"
+        cpu_max: "{{ cpu_data | max }}"
+      when: cpu_data is defined and cpu_data | length > 0 
+    - name: Display queried monitoring data (summary)
+      debug:
+        msg: |
+          --- CPU Utilization Stats (Last Hour) ---
+          Average: {{ cpu_avg if cpu_avg is number else cpu_avg }}{{ '%' if cpu_avg is number else '' }}
+          Minimum: {{ cpu_min if cpu_min is number else cpu_min }}{{ '%' if cpu_min is number else '' }}
+          Maximum: {{ cpu_max if cpu_max is number else cpu_max }}{{ '%' if cpu_max is number else '' }}
+
+    - name: Display Host Information
+      debug:
+        msg: |
+          --- Host Details ---
+          {% for host in host_info.value %}
+          Host: {{ host.name }}
+            Connection State: {{ host.connection_state }}
+            Power State:      {{ host.power_state }}
+          {% endfor %}
+          --------------------
+
+    - name: Display Datastore Information
+      debug:
+        msg: |
+          --- Datastore Details ---
+          {% for datastore in datastore_info.value %}
+          Datastore: {{ datastore.name }} ({{ datastore.type }})
+            Capacity: {{ (datastore.capacity / 1073741824) | round(2) }} GB
+            Free Space: {{ (datastore.free_space / 1073741824) | round(2) }} GB
+            Used Space: {{ ((datastore.capacity - datastore.free_space) / 1073741824) | round(2) }} GB
+          {% endfor %}
+          -------------------------
+   
+
+
+    - name: Display VM Information Summary (safe)
+      debug:
+        msg: |
+          --- VM Details ---
+          Name: {{ item.value.name | default('N/A') }}
+          Power State: {{ item.value.power_state | default('N/A') }}
+          Guest OS: {{ item.value.guest_OS | default('N/A') }}
+          CPUs: {{ item.value.cpu.count | default('N/A') }}
+          Memory (MB): {{ item.value.memory.size_MiB | default('N/A') }}
+          -----------------
+      loop: "{{ detailed_vm_info.results }}"
+
+    - name: Debug cluster_info.value
+      debug:
+        var: cluster_info.value
+
+    - name: Generate HTML report using Jinja2 template
+      template:
+        src: templates/report.html.j2
+        dest: report.html
+

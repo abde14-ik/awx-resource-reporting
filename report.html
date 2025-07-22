@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>vSphere Resource Report</title>
+    <style>
+        body { font-family: Arial; background: #f4f4f4; color: #333; margin: 20px; }
+        h2 { background: #004080; color: white; padding: 10px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>vSphere Resource Report</h1>
+
+    <h2>Cluster Info</h2>
+    <p><strong>Name:</strong> MDC-Cluster</p>
+    <p><strong>HA Enabled:</strong> True</p>
+    <p><strong>DRS Enabled:</strong> True</p>
+
+    <h2>Host Information</h2>
+    <table>
+        <tr><th>Name</th><th>Connection State</th><th>Power State</th></tr>
+                <tr>
+            <td>esxi01.mdc.local</td>
+            <td>CONNECTED</td>
+            <td>POWERED_ON</td>
+        </tr>
+                <tr>
+            <td>esxi02.mdc.local</td>
+            <td>CONNECTED</td>
+            <td>POWERED_ON</td>
+        </tr>
+            </table>
+
+    <h2>Datastore Information</h2>
+    <table>
+        <tr><th>Name</th><th>Type</th><th>Capacity (GB)</th><th>Free Space (GB)</th><th>Used Space (GB)</th></tr>
+                <tr>
+            <td>TN-Data</td>
+            <td>NFS</td>
+            <td>77.23</td>
+            <td>77.23</td>
+            <td>0.0</td>
+        </tr>
+                <tr>
+            <td>datastore1</td>
+            <td>VMFS</td>
+            <td>242.5</td>
+            <td>210.49</td>
+            <td>32.01</td>
+        </tr>
+                <tr>
+            <td>TrueNas-Datastore</td>
+            <td>NFS</td>
+            <td>190.7</td>
+            <td>177.81</td>
+            <td>12.9</td>
+        </tr>
+                <tr>
+            <td>datastore2</td>
+            <td>VMFS</td>
+            <td>142.5</td>
+            <td>119.82</td>
+            <td>22.68</td>
+        </tr>
+            </table>
+	<h2>vCenter Appliance CPU Monitoring (Last Hour)</h2>
+	<table>
+	    <tr><th>Metric</th><th>Value</th></tr>
+	    <tr>
+	        <td>Average CPU Usage</td>
+	        <td>
+	            	                6.017187025822002
+	            	        </td>
+	    </tr>
+	    <tr>
+	        <td>Minimum CPU Usage</td>
+	        <td>
+	            	                5.074071502904357
+	            	        </td>
+	    </tr>
+	    <tr>
+	        <td>Maximum CPU Usage</td>
+	        <td>
+	            	                7.9642317737353725
+	            	        </td>
+	    </tr>
+	</table>
+	
+	<h2>Virtual Machine Information</h2>
+	<table>
+    		<tr>
+        		<th>Name</th>
+        		<th>Power State</th>
+        		<th>Guest OS</th>
+        		<th>CPUs</th>
+        		<th>Memory (MB)</th>
+    		</tr>
+    		    		<tr>
+        		<td>dns01-core</td>
+        		<td>POWERED_ON</td>
+        		<td>WINDOWS_9_SERVER_64</td>
+        		<td>4</td>
+        		<td>4096</td>
+    		</tr>
+    		    		<tr>
+        		<td>dns02-core</td>
+        		<td>POWERED_ON</td>
+        		<td>WINDOWS_9_SERVER_64</td>
+        		<td>4</td>
+        		<td>4096</td>
+    		</tr>
+    		    		<tr>
+        		<td>vCLS-74f7a2ba-d98d-4b45-86b9-96bcfe1a00e5</td>
+        		<td>POWERED_ON</td>
+        		<td>OTHER_3X_LINUX_64</td>
+        		<td>1</td>
+        		<td>128</td>
+    		</tr>
+    		    		<tr>
+        		<td>vCLS-8f63936d-81f7-4df4-bc9a-058a19356194</td>
+        		<td>POWERED_ON</td>
+        		<td>OTHER_3X_LINUX_64</td>
+        		<td>1</td>
+        		<td>128</td>
+    		</tr>
+    			</table>
+    
+</body>report
+</html>

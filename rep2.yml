@@ -1,0 +1,109 @@
+- name: Gather all registered virtual machines
+  community.vmware.vmware_vm_info:
+    hostname: '{{ vcenter_hostname }}'
+    username: '{{ vcenter_username }}'
+    password: '{{ vcenter_password }}'
+  delegate_to: localhost
+  register: vm_info
+
+- debug:
+    var: vm_info.virtual_machines
+
+- name: Gather one specific VM
+  community.vmware.vmware_vm_info:
+    hostname: '{{ vcenter_hostname }}'
+    username: '{{ vcenter_username }}'
+    password: '{{ vcenter_password }}'
+    vm_name: 'vm_name_as_per_vcenter'
+  delegate_to: localhost
+  register: vm_info
+
+- debug:
+    var: vm_info.virtual_machines
+
+- name: Gather only registered virtual machine templates
+  community.vmware.vmware_vm_info:
+    hostname: '{{ vcenter_hostname }}'
+    username: '{{ vcenter_username }}'
+    password: '{{ vcenter_password }}'
+    vm_type: template
+  delegate_to: localhost
+  register: template_info
+
+- debug:
+    var: template_info.virtual_machines
+
+- name: Gather only registered virtual machines
+  community.vmware.vmware_vm_info:
+    hostname: '{{ vcenter_hostname }}'
+    username: '{{ vcenter_username }}'
+    password: '{{ vcenter_password }}'
+    vm_type: vm
+  delegate_to: localhost
+  register: vm_info
+
+- debug:
+    var: vm_info.virtual_machines
+
+- name: Get UUID from given VM Name
+  block:
+    - name: Get virtual machine info
+      community.vmware.vmware_vm_info:
+        hostname: '{{ vcenter_hostname }}'
+        username: '{{ vcenter_username }}'
+        password: '{{ vcenter_password }}'
+        folder: "/datacenter/vm/folder"
+      delegate_to: localhost
+      register: vm_info
+
+    - debug:
+        msg: "{{ item.uuid }}"
+      with_items:
+        - "{{ vm_info.virtual_machines | community.general.json_query(query) }}"
+      vars:
+        query: "[?guest_name=='DC0_H0_VM0']"
+
+- name: Get Tags from given VM Name
+  block:
+    - name: Get virtual machine info
+      community.vmware.vmware_vm_info:
+        hostname: '{{ vcenter_hostname }}'
+        username: '{{ vcenter_username }}'
+        password: '{{ vcenter_password }}'
+        folder: "/datacenter/vm/folder"
+      delegate_to: localhost
+      register: vm_info
+
+    - debug:
+        msg: "{{ item.tags }}"
+      with_items:
+        - "{{ vm_info.virtual_machines | community.general.json_query(query) }}"
+      vars:
+        query: "[?guest_name=='DC0_H0_VM0']"
+
+- name: Gather all VMs from a specific folder
+  community.vmware.vmware_vm_info:
+    hostname: '{{ vcenter_hostname }}'
+    username: '{{ vcenter_username }}'
+    password: '{{ vcenter_password }}'
+    folder: "/MDC-Datacenter/vm/prod"
+  delegate_to: localhost
+  register: vm_info
+
+- name: Get datastore_url from given VM name
+  block:
+    - name: Get virtual machine info
+      community.vmware.vmware_vm_info:
+        hostname: '{{ vcenter_hostname }}'
+        username: '{{ vcenter_username }}'
+        password: '{{ vcenter_password }}'
+      delegate_to: localhost
+      register: vm_info
+
+    - debug:
+        msg: "{{ item.datastore_url }}"
+      with_items:
+        - "{{ vm_info.virtual_machines | community.general.json_query(query) }}"
+      vars:
+        query: "[?guest_name=='DC0_H0_VM0']"
+

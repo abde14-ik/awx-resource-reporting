@@ -1,0 +1,3 @@
+validate_certs: false
+datacenter_name: "MDC-Datacenter"
+cluster_name: "MDC-Cluster"

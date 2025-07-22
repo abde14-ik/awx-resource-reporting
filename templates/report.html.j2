@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>vSphere Resource Report</title>
+    <style>
+        body { font-family: Arial; background: #f4f4f4; color: #333; margin: 20px; }
+        h2 { background: #004080; color: white; padding: 10px; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background: #e0e0e0; }
+    </style>
+</head>
+<body>
+    <h1>vSphere Resource Report</h1>
+
+    <h2>Cluster Info</h2>
+    <p><strong>Name:</strong> {{ cluster_info.value[0].name }}</p>
+    <p><strong>HA Enabled:</strong> {{ cluster_info.value[0].ha_enabled }}</p>
+    <p><strong>DRS Enabled:</strong> {{ cluster_info.value[0].drs_enabled }}</p>
+
+    <h2>Host Information</h2>
+    <table>
+        <tr><th>Name</th><th>Connection State</th><th>Power State</th></tr>
+        {% for host in host_info.value %}
+        <tr>
+            <td>{{ host.name }}</td>
+            <td>{{ host.connection_state }}</td>
+            <td>{{ host.power_state }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>Datastore Information</h2>
+    <table>
+        <tr><th>Name</th><th>Type</th><th>Capacity (GB)</th><th>Free Space (GB)</th><th>Used Space (GB)</th></tr>
+        {% for ds in datastore_info.value %}
+        <tr>
+            <td>{{ ds.name }}</td>
+            <td>{{ ds.type }}</td>
+            <td>{{ (ds.capacity / 1073741824) | round(2) }}</td>
+            <td>{{ (ds.free_space / 1073741824) | round(2) }}</td>
+            <td>{{ ((ds.capacity - ds.free_space) / 1073741824) | round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+	<h2>vCenter Appliance CPU Monitoring (Last Hour)</h2>
+	<table>
+	    <tr><th>Metric</th><th>Value</th></tr>
+	    <tr>
+	        <td>Average CPU Usage</td>
+	        <td>
+	            {% if cpu_avg is number %}
+	                {{ cpu_avg | round(2) }}%
+	            {% else %}
+	                {{ cpu_avg }}
+	            {% endif %}
+	        </td>
+	    </tr>
+	    <tr>
+	        <td>Minimum CPU Usage</td>
+	        <td>
+	            {% if cpu_min is number %}
+	                {{ cpu_min | round(2) }}%
+	            {% else %}
+	                {{ cpu_min }}
+	            {% endif %}
+	        </td>
+	    </tr>
+	    <tr>
+	        <td>Maximum CPU Usage</td>
+	        <td>
+	            {% if cpu_max is number %}
+	                {{ cpu_max | round(2) }}%
+	            {% else %}
+	                {{ cpu_max }}
+	            {% endif %}
+	        </td>
+	    </tr>
+	</table>
+	
+	<h2>Virtual Machine Information</h2>
+	<table>
+    		<tr>
+        		<th>Name</th>
+        		<th>Power State</th>
+        		<th>Guest OS</th>
+        		<th>CPUs</th>
+        		<th>Memory (MB)</th>
+    		</tr>
+    		{% for vm in detailed_vm_info.results %}
+    		<tr>
+        		<td>{{ vm.value.name | default("N/A") }}</td>
+        		<td>{{ vm.value.power_state | default("N/A") }}</td>
+        		<td>{{ vm.value.guest_OS | default("N/A") }}</td>
+        		<td>{{ vm.value.cpu.count | default("N/A") }}</td>
+        		<td>{{ vm.value.memory.size_MiB | default("N/A") }}</td>
+    		</tr>
+    		{% endfor %}
+	</table>
+    
+</body>report
+</html>
