@@ -1,8 +1,8 @@
----
 - name: Generate vSphere Resource Report
   hosts: vcenter
   connection: local
   gather_facts: true
+  
   vars_files:
     - vars/vcenter_config.yml
 
